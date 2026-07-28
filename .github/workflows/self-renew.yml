@@ -1,0 +1,24 @@
+name: self-renew
+# GitHub disables scheduled workflows after 60 days without commits.
+# This job commits a monthly heartbeat so the repo keeps itself alive.
+on:
+  schedule:
+    - cron: '0 0 1 * *'   # first day of every month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: commit heartbeat
+        run: |
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > heartbeat.txt
+          git config user.name "jins-keepalive"
+          git config user.email "actions@github.com"
+          git add heartbeat.txt
+          git commit -m "heartbeat"
+          git push

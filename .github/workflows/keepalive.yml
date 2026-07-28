@@ -1,0 +1,17 @@
+name: keepalive
+# Pings the Jins. release layer every 5 minutes so the database compute
+# never auto-suspends. Public repo → GitHub Actions is free and unmetered.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ping twice, 2.5 min apart
+        run: |
+          curl -fsS --max-time 30 https://jins.dsi.run/api/health || true
+          sleep 150
+          curl -fsS --max-time 30 https://jins.dsi.run/api/health
