@@ -1,0 +1,54 @@
+# Ledger anchor — third-party timestamp chain for Jins. releases.
+#
+# Place this file in the PUBLIC jins-collective/keepalive repository at:
+#   .github/workflows/ledger-anchor.yml
+#
+# Every day it fetches the canonical ledger from the live site and commits it
+# when anything changed. Because commit timestamps live in GitHub's history —
+# outside Jins.'s own database — nobody (including Jins.) can later pretend a
+# fingerprint was registered earlier than it actually was. The commit log IS
+# the tamper-evident record.
+
+name: ledger-anchor
+
+on:
+  schedule:
+    - cron: '17 3 * * *'   # daily, 03:17 UTC (12:17 KST)
+  workflow_dispatch: {}     # manual run button
+
+permissions:
+  contents: write
+
+jobs:
+  anchor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch ledger
+        run: |
+          curl -fsS --retry 3 --retry-delay 10 \
+            https://jins.dsi.run/api/ledger -o ledger.new.json
+          # sanity: must be valid JSON with the expected ledger id
+          python3 - <<'EOF'
+          import json, sys
+          d = json.load(open('ledger.new.json'))
+          assert d.get('ledger') == 'jins.releases.v1', 'unexpected ledger id'
+          assert 'digest' in d and 'releases' in d, 'malformed ledger'
+          EOF
+
+      - name: Commit if changed
+        run: |
+          if cmp -s ledger.new.json ledger.json 2>/dev/null; then
+            echo "No change — nothing to anchor."
+            rm ledger.new.json
+            exit 0
+          fi
+          mv ledger.new.json ledger.json
+          DIGEST=$(python3 -c "import json;print(json.load(open('ledger.json'))['digest'][:16])")
+          COUNT=$(python3 -c "import json;print(json.load(open('ledger.json'))['count'])")
+          git config user.name  "jins-ledger-anchor"
+          git config user.email "actions@github.com"
+          git add ledger.json
+          git commit -m "anchor: ${COUNT} releases · digest ${DIGEST}"
+          git push
