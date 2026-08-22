@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: ping twice, 2.5 min apart
         run: |
-          curl -fsS --max-time 30 https://jins.dsi.run/api/health || true
+          curl -fsS --max-time 30 https://pools.dsi.run/api/health || true
           sleep 150
-          curl -fsS --max-time 30 https://jins.dsi.run/api/health
+          curl -fsS --max-time 30 https://pools.dsi.run/api/health
